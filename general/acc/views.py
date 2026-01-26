@@ -8,4 +8,4 @@ def user_profile(request, username):
 def user_profile_list(request):
     users = UserProfile.objects.all()
     
-    return render(request, 'acc/user_profile_list.html', {'users': users})
+    return render(request, 'acc/user_profile_list.html', {'users': users}) # TEMPLATE MISSING!
