@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Список пользователей</title>
+</head>
+<body>
+
+<h1>Пользователи</h1>
+
+{% if users %}
+    <ul>
+        {% for user in users %}
+            <li>
+                <strong>{{ user.username }}</strong><br>
+
+                {% if user.email %}
+                    Email: {{ user.email }}<br>
+                {% endif %}
+
+                {% if user.phone %}
+                    Телефон: {{ user.phone }}<br>
+                {% endif %}
+
+                Статус:
+                {% if user.is_active %}
+                    активен
+                {% else %}
+                    неактивен
+                {% endif %}
+            </li>
+            <hr>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>Пользователей нет.</p>
+{% endif %}
+
+</body>
+</html>

@@ -1,11 +1,13 @@
 from django.shortcuts import render
-from django.contrib.auth.models import User
-from .models import UserProfile
+from django.shortcuts import get_object_or_404
+from .models import User
 
 def user_profile(request, username):
-    return render(request, 'acc/user_profile.html', {'username': username})
+    user = get_object_or_404(User, username=username)
+
+    return render(request, 'acc/us_pro.html', {'user': user})
 
 def user_profile_list(request):
-    users = UserProfile.objects.all()
+    users = User.objects.all()
     
-    return render(request, 'acc/user_profile_list.html', {'users': users}) # TEMPLATE MISSING!
+    return render(request, 'acc/us_pro_list.html', {'users': users})
