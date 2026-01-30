@@ -27,8 +27,10 @@ class Team(models.Model):
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="teams",
-        limit_choices_to={'status': User.SUPER}
+        related_name="owner",
+        limit_choices_to={'status': User.SUPER},
+        null=True,
+        blank=True
     )
 
     def clean(self):
@@ -41,6 +43,9 @@ class Team(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
 
+    def __str__(self):
+        return self.title
+
 class TeamMember(models.Model):
     class Role(models.TextChoices):
         GUFICK = 'GUFICK', 'Gufick'
@@ -51,16 +56,17 @@ class TeamMember(models.Model):
     team = models.ForeignKey(
         Team,
         on_delete=models.CASCADE,
-        related_name="tasks"
+        related_name="users_team"
     )
 
     profile = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="teams"
+        related_name="users_profile"
     )
 
     role = models.CharField(max_length=30, choices=Role.choices, default=Role.GUFICK)
+
 
 class Task(models.Model):
     class Status(models.TextChoices):
@@ -70,7 +76,7 @@ class Task(models.Model):
     team = models.ForeignKey(
         Team,
         on_delete=models.CASCADE,
-        related_name="tasks"
+        related_name="parent_team"
     )
 
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
@@ -88,6 +94,10 @@ class Task(models.Model):
         null = True,
         blank=True
     )
+   
+
+    def __str__(self):
+        return self.title
 
 class TaskMember(models.Model):
     class Role(models.TextChoices):
@@ -99,13 +109,13 @@ class TaskMember(models.Model):
     task = models.ForeignKey(
         Task,
         on_delete=models.CASCADE,
-        related_name="tasks"
+        related_name="the_task"
     )
 
     profile = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="teams"
+        related_name="responsible_person"
     )
 
     role = models.CharField(max_length=30, choices=Role.choices, default=Role.GUFICK)

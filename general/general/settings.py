@@ -40,6 +40,8 @@ INSTALLED_APPS = [
     
     'acc.apps.AccConfig',
     'task.apps.TaskConfig',
+
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
