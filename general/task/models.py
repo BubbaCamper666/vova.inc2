@@ -3,6 +3,7 @@ import uuid
 from acc.models import User
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.urls import reverse
 
 class Team(models.Model):
     class Status(models.TextChoices):
@@ -45,6 +46,9 @@ class Team(models.Model):
 
     def __str__(self):
         return self.title
+    
+    def get_absolute_url(self):
+        return reverse("teamdetail", kwargs={"pk": self.id})
 
 class TeamMember(models.Model):
     class Role(models.TextChoices):
