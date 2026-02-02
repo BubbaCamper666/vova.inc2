@@ -13,6 +13,7 @@ class TeamSerializer(serializers.ModelSerializer):
             "owner",
             "url",
         )
+        
         model = Team
 
     def get_url(self, obj):
@@ -21,3 +22,24 @@ class TeamSerializer(serializers.ModelSerializer):
         if request:
             return request.build_absolute_uri(url)
         return url
+    
+class TeamPOSTSerializer(serializers.ModelSerializer):
+    class Meta:
+        fields = (
+            "id",
+            "status",
+            "title",
+            "description",
+        )
+        #read_only_fields = ("owner", "createDate", "url",)
+        model = Team
+        
+class TeamPUTSerializer(serializers.ModelSerializer):
+    class Meta:
+        fields = (
+            "id",
+            "status",
+            "title",
+            "description",
+        )
+        model = Team
