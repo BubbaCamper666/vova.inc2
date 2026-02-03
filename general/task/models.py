@@ -49,6 +49,9 @@ class Team(models.Model):
     
     def get_absolute_url(self):
         return reverse("teamdetail", kwargs={"pk": self.id})
+    
+    def get_members_url(self):
+        return reverse("member", kwargs={"pk": self.id})
 
 class TeamMember(models.Model):
     class Role(models.TextChoices):
@@ -70,6 +73,12 @@ class TeamMember(models.Model):
     )
 
     role = models.CharField(max_length=30, choices=Role.choices, default=Role.GUFICK)
+
+    def __str__(self):
+        return self.title
+    
+    def get_deletion_url(self):
+        return reverse("delete_team_member", kwargs={"pk": self.team.id, "member_id": self.id})
 
 
 class Task(models.Model):
