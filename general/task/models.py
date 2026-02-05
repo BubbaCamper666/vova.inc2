@@ -51,7 +51,7 @@ class Team(models.Model):
         return reverse("teamdetail", kwargs={"pk": self.id})
     
     def get_members_url(self):
-        return reverse("member", kwargs={"pk": self.id})
+        return reverse("teammembers", kwargs={"pk": self.id})
 
 class TeamMember(models.Model):
     class Role(models.TextChoices):
@@ -111,7 +111,13 @@ class Task(models.Model):
 
     def __str__(self):
         return self.title
-
+    
+    def get_absolute_url(self):
+        return reverse("taskdetail", kwargs={"pk": self.id})
+    
+    def get_members_url(self):
+        return reverse("taskmember", kwargs={"pk": self.id})
+    
 class TaskMember(models.Model):
     class Role(models.TextChoices):
         GUFICK = 'GUFICK', 'Gufick'

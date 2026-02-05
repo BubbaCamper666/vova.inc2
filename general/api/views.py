@@ -1,5 +1,6 @@
 from rest_framework.response import Response
 from django.http import Http404
+from django.urls import reverse
 
 
 from rest_framework import generics, mixins
@@ -17,6 +18,20 @@ class MyStandartPagination(PageNumberPagination):
     page_size = 5
     page_size_query_param = 'p-size'
     max_page_size = 10
+    
+class Welcome(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def linky(self, request):
+        fixed_path = reverse("teamlist")
+        full_url = request.build_absolute_uri(fixed_path)
+        return full_url
+
+    def get(self, request):
+        return Response({
+            "WELCOME": "WELCOME",
+            "teamlist": self.linky(request),
+        })
 
 class Teamlist(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
@@ -46,7 +61,7 @@ class Teamlist(generics.ListCreateAPIView):
 class TeamDetail(APIView):
     serializer_class = serializers.TeamSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_object(self, pk):
         try:
             return Team.objects.get(pk=pk, owner=self.request.user)
@@ -55,12 +70,12 @@ class TeamDetail(APIView):
 
     def get(self, request, pk):
         team = self.get_object(pk)
-        seriaizer = serializers.TeamSerializer(team)
+        seriaizer = serializers.TeamSerializer(team, context={"request": request})
         return Response(seriaizer.data)
     
     def put(self, request, pk):
         team = self.get_object(pk)
-        serializer = serializers.TeamPUTSerializer(team, data=request.data, partial=True)
+        serializer = serializers.TeamPUTSerializer(team, data=request.data, partial=True, context={"request": request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
