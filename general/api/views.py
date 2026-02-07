@@ -6,7 +6,7 @@ from django.urls import reverse
 from rest_framework import generics, mixins
 from rest_framework.views import APIView
 
-from task.models import Team, TeamMember
+from task.models import Team, TeamMember, Task, TaskMember
 from . import serializers 
 from rest_framework.permissions import IsAuthenticated
 
@@ -20,7 +20,7 @@ class MyStandartPagination(PageNumberPagination):
     max_page_size = 10
     
 class Welcome(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated] #should be none
     
     def linky(self, request):
         fixed_path = reverse("teamlist")
@@ -34,7 +34,7 @@ class Welcome(APIView):
         })
 
 class Teamlist(generics.ListCreateAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated] #should be user = supervlad
     serializer_class = serializers.TeamSerializer
     
     def get_queryset(self):
@@ -60,7 +60,7 @@ class Teamlist(generics.ListCreateAPIView):
 
 class TeamDetail(APIView):
     serializer_class = serializers.TeamSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated] # should be user in members (get) or user = owner (get, put, delete)
 
     def get_object(self, pk):
         try:
@@ -88,7 +88,7 @@ class TeamDetail(APIView):
         
 class TeamMemberList(generics.ListCreateAPIView):
     serializer_class = serializers.TeamMemberSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated] # should be user in members (get) or user = owner (get, put)
 
     def get_queryset(self):
         kwarg = self.kwargs.get("pk")
@@ -105,7 +105,7 @@ class TeamMemberList(generics.ListCreateAPIView):
 
 class TeamMemberDelete(generics.DestroyAPIView):
     serializer_class = serializers.TeamMemberSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated] # should be user = owner
 
     lookup_url_kwarg = "member_id"
 
@@ -113,3 +113,29 @@ class TeamMemberDelete(generics.DestroyAPIView):
         team_pk = self.kwargs["pk"]
         return TeamMember.objects.filter(team_id=team_pk)
 
+class TaskList(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated] # should be user in members (get) or user = owner (get, put, delete)
+    serializer_class = serializers.TaskSerializer
+    
+    def get_queryset(self):
+        pk = self.kwargs.get("pk")
+        parentTeam = Team.objects.get(id=pk)
+        return Task.objects.filter(team=parentTeam)
+    
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return serializers.TaskPOSTSerializer
+        return serializers.TaskSerializer
+
+    #QOL
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['title', 'status']
+    search_fields = ['title']
+    ordering = ['status', 'deadline'] # default ordering
+    ordering_fields = ['title', 'status', 'createDate', 'deadline']
+
+    #pagination
+    pagination_class = MyStandartPagination
+
+class TaskMemberList(generics.ListCreateAPIView):
+    pass

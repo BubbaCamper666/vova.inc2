@@ -52,6 +52,9 @@ class Team(models.Model):
     
     def get_members_url(self):
         return reverse("teammembers", kwargs={"pk": self.id})
+    
+    def get_tasks_url(self):
+        return reverse("tasklist", kwargs={"pk": self.id})
 
 class TeamMember(models.Model):
     class Role(models.TextChoices):
@@ -116,7 +119,9 @@ class Task(models.Model):
         return reverse("taskdetail", kwargs={"pk": self.id})
     
     def get_members_url(self):
-        return reverse("taskmember", kwargs={"pk": self.id})
+        return reverse("taskmembers", kwargs={"pk": self.team.id})
+    
+
     
 class TaskMember(models.Model):
     class Role(models.TextChoices):
