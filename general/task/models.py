@@ -52,6 +52,9 @@ class Team(models.Model):
     
     def get_members_url(self):
         return reverse("teammembers", kwargs={"pk": self.id})
+    
+    def get_tasks_url(self):
+        return reverse("tasklist", kwargs={"pk": self.id})
 
 class TeamMember(models.Model):
     class Role(models.TextChoices):
@@ -94,6 +97,8 @@ class Task(models.Model):
 
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
 
+    id = models.BigAutoField(primary_key=True)
+
     title = models.CharField(max_length=30)
     description = models.CharField(max_length=300)
 
@@ -116,7 +121,12 @@ class Task(models.Model):
         return reverse("taskdetail", kwargs={"pk": self.id})
     
     def get_members_url(self):
-        return reverse("taskmember", kwargs={"pk": self.id})
+        return reverse("taskmembers", kwargs={"pk": self.team.id, "taskid": self.id})
+    
+    def get_delete_url(self):
+        return reverse("taskdelete", kwargs={"pk": self.team.id, "taskid": self.id})
+    
+
     
 class TaskMember(models.Model):
     class Role(models.TextChoices):
@@ -138,3 +148,9 @@ class TaskMember(models.Model):
     )
 
     role = models.CharField(max_length=30, choices=Role.choices, default=Role.GUFICK)
+
+    def __str__(self):
+        return self.profile.username
+    
+    def get_delete_url(self):
+        return reverse("delete_task_member", kwargs={"pk": self.task.team.id, "taskid": self.task.id, "member_id": self.id})

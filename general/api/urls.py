@@ -4,9 +4,16 @@ from . import views
 urlpatterns = [
     path("", views.Welcome.as_view(), name="welcome"),
     path("auth/", include("rest_framework.urls")),
-    path('team/<uuid:pk>/', views.TeamDetail.as_view(), name="teamdetail"),
+    
+    path('team/<uuid:pk>/task/', views.TaskList.as_view(), name="tasklist"),
+    path('team/<uuid:pk>/task/<int:taskid>/delete/', views.TaskDelete.as_view(), name="taskdelete"),
+    path("team/<uuid:pk>/task/<int:taskid>/members/", views.TaskMemberList.as_view(), name="taskmembers"),
+    path("team/<uuid:pk>/task/<int:taskid>/members/<int:member_id>/delete/", views.TaskMemberDelete.as_view(), name="delete_task_member"),
+    
     path('team/', views.Teamlist.as_view(), name="teamlist"),
-    path("teammembers/<uuid:pk>/delete/<int:member_id>/", views.TeamMemberDelete.as_view(), name="delete_team_member"),
-    path('teammembers/<uuid:pk>/', views.TeamMemberList.as_view(), name="teammembers")
+    path('team/<uuid:pk>/', views.TeamDetail.as_view(), name="teamdetail"),
+    path("team/<uuid:pk>/members/<int:member_id>/delete/", views.TeamMemberDelete.as_view(), name="delete_team_member"),
+    path('team/<uuid:pk>/members/', views.TeamMemberList.as_view(), name="teammembers"),
+    
     
 ]   
