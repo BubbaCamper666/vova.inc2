@@ -90,6 +90,7 @@ class TeamMemberPOSTSerializer(serializers.ModelSerializer):
 
 class TaskSerializer(serializers.ModelSerializer):
     members_url = serializers.SerializerMethodField()
+    delete_url = serializers.SerializerMethodField()
     class Meta:
         fields = (
             "status",
@@ -98,11 +99,19 @@ class TaskSerializer(serializers.ModelSerializer):
             "description",
             "createDate",
             "members_url",
+            "delete_url",
         )
         model = Task
     def get_members_url(self, obj):
         request = self.context.get("request")
         url = obj.get_members_url()
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+    
+    def get_delete_url(self, obj):
+        request = self.context.get("request")
+        url = obj.get_delete_url()
         if request:
             return request.build_absolute_uri(url)
         return url
@@ -116,3 +125,29 @@ class TaskPOSTSerializer(serializers.ModelSerializer):
             "description",
         )
         model = Task
+        
+class TaskMemberSerializer(serializers.ModelSerializer):
+    delete_url = serializers.SerializerMethodField()
+    class Meta:
+        fields = (
+            "task",
+            "profile",
+            "role",
+            "delete_url",
+        )
+        model = TaskMember
+    def get_delete_url(self, obj):
+        request = self.context.get("request")
+        url = obj.get_delete_url()
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+    
+class TaskMemberPOSTSerializer(serializers.ModelSerializer):
+    class Meta:
+        fields = (
+            "profile",
+            "role",
+        )
+        read_only_fields = ["team"]
+        model = TaskMember
