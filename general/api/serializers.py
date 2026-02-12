@@ -5,6 +5,7 @@ class TeamSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
     members_url = serializers.SerializerMethodField()
     tasks_url = serializers.SerializerMethodField()
+    delete_url = serializers.SerializerMethodField()
     class Meta:
         fields = (
             "id",
@@ -16,6 +17,7 @@ class TeamSerializer(serializers.ModelSerializer):
             "url",
             "members_url",
             "tasks_url",
+            "delete_url",
         )
         
         model = Team
@@ -37,6 +39,13 @@ class TeamSerializer(serializers.ModelSerializer):
     def get_tasks_url(self, obj):
         request = self.context.get("request")
         url = obj.get_tasks_url()
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+    
+    def get_delete_url(self, obj):
+        request = self.context.get("request")
+        url = obj.get_delete_url()
         if request:
             return request.build_absolute_uri(url)
         return url
@@ -91,6 +100,7 @@ class TeamMemberPOSTSerializer(serializers.ModelSerializer):
 class TaskSerializer(serializers.ModelSerializer):
     members_url = serializers.SerializerMethodField()
     delete_url = serializers.SerializerMethodField()
+    redact_url = serializers.SerializerMethodField()
     class Meta:
         fields = (
             "status",
@@ -100,6 +110,7 @@ class TaskSerializer(serializers.ModelSerializer):
             "createDate",
             "members_url",
             "delete_url",
+            "redact_url",
         )
         model = Task
     def get_members_url(self, obj):
@@ -115,6 +126,23 @@ class TaskSerializer(serializers.ModelSerializer):
         if request:
             return request.build_absolute_uri(url)
         return url
+    
+    def get_redact_url(self, obj):
+        request = self.context.get("request")
+        url = obj.get_redact_url()
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+    
+class TaskPUTSerializer(serializers.ModelSerializer):
+    class Meta:
+        fields = (
+            "status",
+            "deadline",
+            "title",
+            "description",
+        )
+        model = Task
 
 class TaskPOSTSerializer(serializers.ModelSerializer):
     class Meta:

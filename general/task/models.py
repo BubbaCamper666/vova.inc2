@@ -56,6 +56,9 @@ class Team(models.Model):
     def get_tasks_url(self):
         return reverse("tasklist", kwargs={"pk": self.id})
 
+    def get_delete_url(self):
+        return reverse("teamdelete", kwargs={"pk": self.id})
+
 class TeamMember(models.Model):
     class Role(models.TextChoices):
         GUFICK = 'GUFICK', 'Gufick'
@@ -126,7 +129,8 @@ class Task(models.Model):
     def get_delete_url(self):
         return reverse("taskdelete", kwargs={"pk": self.team.id, "taskid": self.id})
     
-
+    def get_redact_url(self):
+        return reverse("taskredact", kwargs={"pk": self.team.id, "taskid": self.id})
     
 class TaskMember(models.Model):
     class Role(models.TextChoices):

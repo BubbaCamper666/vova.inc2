@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 
 from task.models import Team, TeamMember, Task, TaskMember
 from . import serializers 
+from . import permissions
 from rest_framework.permissions import IsAuthenticated
 
 from rest_framework import filters
@@ -25,20 +26,26 @@ import uuid
 from django.utils.timezone import now
 
 class Welcome(APIView):
-    permission_classes = [IsAuthenticated] #should be none
+    permission_classes = [IsAuthenticated]
     
-    def linky(self, request):
+    def get_teamlist_url(self, request):
         fixed_path = reverse("teamlist")
+        full_url = request.build_absolute_uri(fixed_path)
+        return full_url
+    
+    def get_teamcreate_url(self, request):
+        fixed_path = reverse("teamcreate")
         full_url = request.build_absolute_uri(fixed_path)
         return full_url
 
     def get(self, request):
         return Response({
             "WELCOME": "WELCOME",
-            "teamlist": self.linky(request),
+            "teamlist": self.get_teamlist_url(request),
+            "teamcreate": self.get_teamcreate_url(request),
         })
 
-class Teamlist(generics.ListCreateAPIView):
+class Teamlist(generics.ListAPIView):
     permission_classes = [IsAuthenticated] # VLAD MUST NOT HAVE ACCES TO POST
     serializer_class = serializers.TeamSerializer
     
@@ -47,17 +54,9 @@ class Teamlist(generics.ListCreateAPIView):
             return Team.objects.filter(owner=self.request.user)
         elif self.request.user.status == "SUPERVLAD": 
             return Team.objects.filter(
-                Q(users_team__profile=self.request.user) |
-                Q(owner=self.request.user)
+                Q(users_team__profile=self.request.user) | #query1
+                Q(owner=self.request.user) #query2
             ).distinct()
-    
-    def get_serializer_class(self):
-        if self.request.method == 'POST':
-            return serializers.TeamPOSTSerializer
-        return serializers.TeamSerializer
-
-    def perform_create(self, serializer):
-        serializer.save(owner=self.request.user)
 
     #QOL
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -68,11 +67,28 @@ class Teamlist(generics.ListCreateAPIView):
 
     #pagination
     pagination_class = MyStandartPagination
+    
+class TeamCreate(generics.CreateAPIView):
+    serializer_class = serializers.TeamPOSTSerializer
+    permission_classes = [permissions.IsSuperVLAD]
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+    
+class TeamDelete(generics.DestroyAPIView):
+    serializer_class = serializers.TeamSerializer
+    permission_classes = [permissions.IsOwner]
+    
+    lookup_url_kwarg = "pk"
+    lookup_field = "id"
+    
+    def get_queryset(self):
+        pk = self.kwargs.get("pk")
+        return Team.objects.filter(id=pk)
 
 class TeamDetail(APIView):
     serializer_class = serializers.TeamSerializer
-    permission_classes = [IsAuthenticated] # should be user in members (get) or user = owner (get, put, delete)
-
+    permission_classes = [permissions.IsOwnerOrMember]
     def get_object(self, pk):
         try:
             return Team.objects.get(pk=pk, owner=self.request.user)
@@ -99,7 +115,7 @@ class TeamDetail(APIView):
         
 class TeamMemberList(generics.ListCreateAPIView):
     serializer_class = serializers.TeamMemberSerializer
-    permission_classes = [IsAuthenticated] # should be user in members (get) or user = owner (get, put)
+    permission_classes = []
 
     def get_queryset(self):
         kwarg = self.kwargs.get("pk")
@@ -116,7 +132,7 @@ class TeamMemberList(generics.ListCreateAPIView):
 
 class TeamMemberDelete(generics.DestroyAPIView):
     serializer_class = serializers.TeamMemberSerializer
-    permission_classes = [IsAuthenticated] # should be user = owner
+    permission_classes = [permissions.IsOwner]
 
     lookup_url_kwarg = "member_id"
     lookup_field = "id"
@@ -158,6 +174,34 @@ class TaskList(generics.ListCreateAPIView):
 
     #pagination
     pagination_class = MyStandartPagination
+    
+class TaskRedact(APIView):
+    serializer_class = serializers.TaskSerializer
+    permission_classes = [IsAuthenticated] 
+    
+    def get_serializer_class(self):
+        if self.request.method == 'PUT':
+            return serializers.TaskPUTSerializer
+        return serializers.TaskSerializer
+
+    def get_object(self, pk, taskid):
+        try:
+            return Task.objects.get(pk=taskid, team_id=pk)
+        except Task.DoesNotExist:
+            raise Http404
+
+    def get(self, request, pk, taskid):
+        task = self.get_object(pk, taskid)
+        seriaizer = serializers.TaskSerializer(task, context={"request": request})
+        return Response(seriaizer.data)
+    
+    def put(self, request, pk, taskid):
+        task = self.get_object(pk, taskid)
+        serializer = serializers.TaskPUTSerializer(task, data=request.data, partial=True, context={"request": request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
     
 class TaskDelete(generics.DestroyAPIView):
     serializer_class = serializers.TaskSerializer
