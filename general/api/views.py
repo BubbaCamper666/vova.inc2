@@ -46,7 +46,7 @@ class Welcome(APIView):
         })
 
 class Teamlist(generics.ListAPIView):
-    permission_classes = [IsAuthenticated] # VLAD MUST NOT HAVE ACCES TO POST
+    permission_classes = [IsAuthenticated]
     serializer_class = serializers.TeamSerializer
     
     def get_queryset(self):
@@ -115,7 +115,7 @@ class TeamDetail(APIView):
         
 class TeamMemberList(generics.ListCreateAPIView):
     serializer_class = serializers.TeamMemberSerializer
-    permission_classes = []
+    permission_classes = [permissions.IsOwnerOrMemberLIST]
 
     def get_queryset(self):
         kwarg = self.kwargs.get("pk")
@@ -132,7 +132,7 @@ class TeamMemberList(generics.ListCreateAPIView):
 
 class TeamMemberDelete(generics.DestroyAPIView):
     serializer_class = serializers.TeamMemberSerializer
-    permission_classes = [permissions.IsOwner]
+    permission_classes = [permissions.IsOwnerForParentTeam]
 
     lookup_url_kwarg = "member_id"
     lookup_field = "id"
@@ -142,7 +142,7 @@ class TeamMemberDelete(generics.DestroyAPIView):
         return TeamMember.objects.filter(team_id=team_pk)
 
 class TaskList(generics.ListCreateAPIView): 
-    permission_classes = [IsAuthenticated] # should be user in members (get) or user = owner (get, put, delete)
+    permission_classes = [permissions.IsOwnerOrMemberLIST]
     serializer_class = serializers.TaskSerializer
     
     def get_queryset(self):
@@ -159,11 +159,7 @@ class TaskList(generics.ListCreateAPIView):
         pk = self.kwargs.get("pk")
         parentTeam = Team.objects.get(id=pk)
         serializer.save(team=parentTeam)
-        #rid = self.request.headers.get("X-Request-Id", str(uuid.uuid4()))
-        #print("POST /tasks perform_create", now(), "rid=", rid)
 
-    #MUST HAVE PUT FOR REDACTING
-    
 
     #QOL
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -177,7 +173,7 @@ class TaskList(generics.ListCreateAPIView):
     
 class TaskRedact(APIView):
     serializer_class = serializers.TaskSerializer
-    permission_classes = [IsAuthenticated] 
+    permission_classes = [permissions.IsOwner] 
     
     def get_serializer_class(self):
         if self.request.method == 'PUT':
@@ -205,7 +201,7 @@ class TaskRedact(APIView):
     
 class TaskDelete(generics.DestroyAPIView):
     serializer_class = serializers.TaskSerializer
-    permission_classes = [IsAuthenticated] # MUST BE USER = OWNER OF TEAM
+    permission_classes = [permissions.IsOwnerForParentTeam]
     
     lookup_url_kwarg = "taskid"
     lookup_field = "id"
@@ -217,7 +213,7 @@ class TaskDelete(generics.DestroyAPIView):
 
 class TaskMemberList(generics.ListCreateAPIView):
     serializer_class = serializers.TaskMemberSerializer
-    permission_classes = [IsAuthenticated] # should be user in members (get) or user = owner (get, put)
+    permission_classes = [permissions.IsOwnerOrMemberLIST]
     
     #WHILE CREATING MUST BE ABLE TO CHOOSE ONLY FROM TEAM MEMBERS, NOT ALL USERS
     
@@ -239,7 +235,7 @@ class TaskMemberList(generics.ListCreateAPIView):
 
 class TaskMemberDelete(generics.DestroyAPIView):
     serializer_class = serializers.TaskMemberSerializer
-    permission_classes = [IsAuthenticated] # MUST BE USER = OWNER
+    permission_classes = [permissions.IsOwnerForParentTeam]
     
     lookup_url_kwarg = "member_id"
     lookup_field = "id"

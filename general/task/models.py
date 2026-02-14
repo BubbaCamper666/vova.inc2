@@ -81,7 +81,7 @@ class TeamMember(models.Model):
     role = models.CharField(max_length=30, choices=Role.choices, default=Role.GUFICK)
 
     def __str__(self):
-        return self.title
+        return self.profile.username
     
     def get_deletion_url(self):
         return reverse("delete_team_member", kwargs={"pk": self.team.id, "member_id": self.id})

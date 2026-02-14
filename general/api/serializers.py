@@ -179,3 +179,24 @@ class TaskMemberPOSTSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ["team"]
         model = TaskMember
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        view = self.context.get("view")
+        if view:
+            team_pk = view.kwargs.get("pk")
+            if team_pk:
+                self.fields["profile"].queryset = TeamMember.objects.filter(
+                    team_id=team_pk
+                ).distinct()
+
+    def validate_profile(self, user):
+        view = self.context["view"]
+        team_pk = view.kwargs.get("pk")
+
+        if not TeamMember.objects.filter(team_id=team_pk, profile=user).exists():
+            raise serializers.ValidationError(
+                "User is not member of the Team."
+            )
+
+        return user

@@ -9,6 +9,13 @@ class IsOwner(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         return obj.owner == request.user
     
+class IsOwnerForParentTeam(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        team_pk = view.kwargs.get("pk")
+        if not team_pk:
+            return False
+        return (Team.objects.filter(pk=team_pk, owner=request.user).exists())
+
 class IsOwnerOrMember(permissions.BasePermission):
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_authenticated)
@@ -22,7 +29,15 @@ class IsOwnerOrMember(permissions.BasePermission):
             return False
         
 class IsOwnerOrMemberLIST(permissions.BasePermission):
-    pass
-        
+    def has_permission(self, request, view):
+        team_pk = view.kwargs.get("pk")
+        if not team_pk:
+            return False
 
-    
+        if request.method in permissions.SAFE_METHODS:
+            return (
+                Team.objects.filter(pk=team_pk, owner=request.user).exists() or
+                TeamMember.objects.filter(team_id=team_pk, profile=request.user).exists()
+            )
+        
+        return Team.objects.filter(pk=team_pk, owner=request.user).exists()
