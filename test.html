@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+  <head><meta charset="utf-8"><title>WS test</title></head>
+  <body>
+    <button id="send">Send</button>
+    <pre id="log"></pre>
+
+    <script>
+      const log = (t) => document.getElementById("log").textContent += t + "\n";
+
+      const ws = new WebSocket("ws://127.0.0.1:8000/ws/chats/1/");
+
+      ws.onopen = () => {
+        log("connected");
+      };
+
+      ws.onmessage = (e) => {
+        log("message: " + e.data);
+      };
+
+      ws.onerror = (e) => {
+        log("error (see console)");
+        console.error(e);
+      };
+
+      document.getElementById("send").onclick = () => {
+        ws.send(JSON.stringify({text: "Привет из test.html"}));
+      };
+    </script>
+  </body>
+</html>

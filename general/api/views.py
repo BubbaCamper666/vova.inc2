@@ -7,6 +7,7 @@ from rest_framework import generics, mixins
 from rest_framework.views import APIView
 
 from task.models import Team, TeamMember, Task, TaskMember
+#from chat.models import Room, MessageRoom
 from . import serializers 
 from . import permissions
 from rest_framework.permissions import IsAuthenticated
@@ -245,3 +246,44 @@ class TaskMemberDelete(generics.DestroyAPIView):
         taskid = self.kwargs.get("taskid")
         member_id = self.kwargs.get("member_id")
         return TaskMember.objects.filter(task__team_id=team_pk, task__id=taskid, id=member_id)
+    
+# chat views will be here
+"""
+class RoomList(generics.ListAPIView):
+    serializer_class = serializers.RoomSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return Room.objects.filter(participants=self.request.user)
+    
+class RoomCreate(generics.CreateAPIView):
+    serializer_class = serializers.RoomSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def perform_create(self, serializer):
+        room = serializer.save()
+        room.participants.add(self.request.user)
+        
+class RoomChat(APIView):
+    serializer_class = serializers.MessageRoomSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_object(self, room_id):
+        try:
+            return Room.objects.get(id=room_id, participants=self.request.user)
+        except Room.DoesNotExist:
+            raise Http404
+    
+    def get(self, request, room_id):
+        messages = MessageRoom.objects.filter(room_id=room_id)
+        serializer = serializers.MessageRoomSerializer(messages, many=True, context={"request": request})
+        return Response(serializer.data)
+    
+    def post(self, request, room_id):
+        serializer = serializers.MessageRoomSerializer(data=request.data, context={"request": request})
+        if serializer.is_valid():
+            room = Room.objects.get(id=room_id)
+            serializer.save(room=room, sender=request.user, team=room.team_set.first())
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+"""

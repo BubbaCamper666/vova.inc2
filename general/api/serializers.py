@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from task.models import Task, Team, TeamMember, TaskMember
+#from chat.models import Room, MessageRoom
 
 class TeamSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
@@ -200,3 +201,6 @@ class TaskMemberPOSTSerializer(serializers.ModelSerializer):
             )
 
         return user
+    
+# CHAT SERIALIZERS
+

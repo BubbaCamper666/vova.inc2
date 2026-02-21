@@ -1,0 +1,302 @@
+Ок, давай по делу: как сделать **чаты (личка/группы) через WebSocket** в проекте с **Django + DRF**.
+
+Самый стандартный стек:
+- DRF — для REST (создание чатов, список диалогов, история сообщений, права)
+- Django Channels — для WebSocket (реaltime доставка сообщений, online/typing и т.д.)
+- Redis — как channel layer (чтобы работало нормально и в нескольких воркерах)
+
+Ниже дам рабочий “скелет” (минимально жизнеспособный), который ты можешь вставить и расширять.
+
+────────────────────────────
+1) Установка
+────────────────────────────
+pip install channels channels-redis daphne
+
+Redis:
+- локально: поставь redis (или через docker)
+- docker вариант:
+docker run -p 6379:6379 redis:7
+
+────────────────────────────
+2) settings.py
+────────────────────────────
+INSTALLED_APPS += [
+    "channels",
+    "chat",  # твоё приложение
+]
+
+ASGI_APPLICATION = "config.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [("127.0.0.1", 6379)]},
+    }
+}
+
+AUTH_USER_MODEL = "auth.User"  # если кастомный — оставь свой
+
+Важно: DRF дальше остаётся как есть, просто добавляем Channels.
+
+────────────────────────────
+3) asgi.py (config/asgi.py)
+────────────────────────────
+import os
+from django.core.asgi import get_asgi_application
+from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.auth import AuthMiddlewareStack
+import chat.routing
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+
+django_asgi_app = get_asgi_application()
+
+application = ProtocolTypeRouter({
+    "http": django_asgi_app,
+    "websocket": AuthMiddlewareStack(
+        URLRouter(chat.routing.websocket_urlpatterns)
+    ),
+})
+
+AuthMiddlewareStack даёт request.user в сокете (через session/cookie). Если у тебя JWT — см. пункт про JWT ниже.
+
+────────────────────────────
+4) Модели чата (пример)
+────────────────────────────
+chat/models.py
+
+from django.db import models
+from django.conf import settings
+
+User = settings.AUTH_USER_MODEL
+
+class Chat(models.Model):
+    is_group = models.BooleanField(default=False)
+    title = models.CharField(max_length=255, blank=True)
+
+class ChatMember(models.Model):
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name="members")
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("chat", "user")
+
+class Message(models.Model):
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name="messages")
+    sender = models.ForeignKey(User, on_delete=models.CASCADE)
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+────────────────────────────
+5) DRF: эндпоинты (создать чат, список чатов, история)
+────────────────────────────
+chat/serializers.py
+
+from rest_framework import serializers
+from .models import Chat, ChatMember, Message
+
+class MessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Message
+        fields = ("id", "chat", "sender", "text", "created_at")
+        read_only_fields = ("id", "sender", "created_at")
+
+class ChatSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Chat
+        fields = ("id", "is_group", "title")
+
+class CreateChatSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField()
+
+    def validate_user_id(self, value):
+        # тут можно проверить существование юзера
+        return value
+
+────────────────────────────
+chat/views.py
+
+from rest_framework import generics, permissions
+from django.contrib.auth import get_user_model
+from .models import Chat, ChatMember, Message
+from .serializers import ChatSerializer, CreateChatSerializer, MessageSerializer
+
+User = get_user_model()
+
+class MyChatsView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ChatSerializer
+
+    def get_queryset(self):
+        return Chat.objects.filter(members__user=self.request.user).distinct()
+
+class CreateDirectChatView(generics.CreateAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = CreateChatSerializer
+
+    def perform_create(self, serializer):
+        other = User.objects.get(id=serializer.validated_data["user_id"])
+        # примитивно: создаём новый чат, лучше искать существующий direct-чат
+        chat = Chat.objects.create(is_group=False)
+        ChatMember.objects.bulk_create([
+            ChatMember(chat=chat, user=self.request.user),
+            ChatMember(chat=chat, user=other),
+        ])
+        serializer.instance = {"chat_id": chat.id}
+
+class ChatMessagesView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = MessageSerializer
+
+    def get_queryset(self):
+        chat_id = self.kwargs["chat_id"]
+        # проверка что юзер участник
+        ChatMember.objects.get(chat_id=chat_id, user=self.request.user)
+        return Message.objects.filter(chat_id=chat_id)
+
+────────────────────────────
+6) WebSocket routing
+────────────────────────────
+chat/routing.py
+
+from django.urls import re_path
+from .consumers import ChatConsumer
+
+websocket_urlpatterns = [
+    re_path(r"ws/chats/(?P<chat_id>\d+)/$", ChatConsumer.as_asgi()),
+]
+
+────────────────────────────
+7) Consumer (главная часть)
+────────────────────────────
+chat/consumers.py
+
+import json
+from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.db import database_sync_to_async
+from django.utils import timezone
+from .models import ChatMember, Message
+
+class ChatConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        self.chat_id = int(self.scope["url_route"]["kwargs"]["chat_id"])
+        self.group_name = f"chat_{self.chat_id}"
+        user = self.scope["user"]
+
+        if user.is_anonymous:
+            await self.close(code=4401)  # unauthorized
+            return
+
+        is_member = await self._is_member(user.id, self.chat_id)
+        if not is_member:
+            await self.close(code=4403)  # forbidden
+            return
+
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+        action = data.get("action")
+
+        if action == "message":
+            text = (data.get("text") or "").strip()
+            if not text:
+                return
+
+            msg = await self._create_message(
+                chat_id=self.chat_id,
+                sender_id=self.scope["user"].id,
+                text=text
+            )
+
+            await self.channel_layer.group_send(
+                self.group_name,
+                {
+                    "type": "chat.message",
+                    "message": {
+                        "id": msg["id"],
+                        "chat": self.chat_id,
+                        "sender": msg["sender_id"],
+                        "text": msg["text"],
+                        "created_at": msg["created_at"],
+                    }
+                }
+            )
+
+    async def chat_message(self, event):
+        await self.send(text_data=json.dumps(event["message"]))
+
+    @database_sync_to_async
+    def _is_member(self, user_id: int, chat_id: int) -> bool:
+        return ChatMember.objects.filter(chat_id=chat_id, user_id=user_id).exists()
+
+    @database_sync_to_async
+    def _create_message(self, chat_id: int, sender_id: int, text: str):
+        m = Message.objects.create(chat_id=chat_id, sender_id=sender_id, text=text)
+        return {
+            "id": m.id,
+            "sender_id": m.sender_id,
+            "text": m.text,
+            "created_at": m.created_at.isoformat(),
+        }
+
+────────────────────────────
+8) Как запускать
+────────────────────────────
+Обычно:
+python manage.py runserver
+
+Но для прод / правильного ASGI:
+daphne config.asgi:application
+
+(или uvicorn тоже можно, но daphne родной для channels)
+
+────────────────────────────
+9) Клиентский пример (JS)
+────────────────────────────
+const ws = new WebSocket("ws://127.0.0.1:8000/ws/chats/12/");
+
+ws.onmessage = (e) => {
+  const msg = JSON.parse(e.data);
+  console.log("new msg", msg);
+};
+
+ws.onopen = () => {
+  ws.send(JSON.stringify({ action: "message", text: "Привет!" }));
+};
+
+────────────────────────────
+10) Если у тебя JWT (очень частый кейс)
+────────────────────────────
+AuthMiddlewareStack работает с cookie/session.
+Если у тебя JWT в заголовке Authorization — то в WebSocket его так не передать напрямую как в DRF.
+
+Решение:
+- передавать токен в querystring: ws://.../ws/chats/12/?token=...
+- написать кастомный middleware, который достаёт token, валидирует, ставит scope["user"]
+
+Если скажешь, ты на session/cookie или на JWT (simplejwt), я дам готовый middleware код под твой вариант.
+
+────────────────────────────
+Что у тебя уже есть в проекте (важно)
+────────────────────────────
+Ответь себе:
+1) Аутентификация: session или JWT?
+2) Тип чатов: только личка или ещё группы?
+3) Хочешь “прочитано/доставлено”, online, typing?
+
+Я могу сразу накидать:
+- поиск/создание существующего direct-чата (чтобы не плодить дубликаты)
+- endpoints: unread count, mark read
+- события: typing, delivered/read receipts
+- права (только участники чата) в DRF и WS одинаково
+
+Если хочешь — просто скажи: “у меня JWT + личные чаты”, и я дам готовый middleware + финальную структуру роутов/permissions под твой текущий DRF стиль.

@@ -1,7 +1,10 @@
 from django.urls import path, re_path, include
 from . import views
+from rest_framework.authtoken.views import obtain_auth_token
 
 urlpatterns = [
+    path('token/', obtain_auth_token),
+    
     path("", views.Welcome.as_view(), name="welcome"),
     path("auth/", include("rest_framework.urls")),
     
@@ -18,5 +21,6 @@ urlpatterns = [
     path("team/<uuid:pk>/members/<int:member_id>/delete/", views.TeamMemberDelete.as_view(), name="delete_team_member"),
     path('team/<uuid:pk>/members/', views.TeamMemberList.as_view(), name="teammembers"),
     
+
     
 ]   

@@ -1,0 +1,3 @@
+wscat -c "ws://127.0.0.1:8000/ws/chat/1/?token=0bf45ebf8cce9fb739a52ce8ddb4943cb34115bd" -H "Origin: http://127.0.0.1:8000"
+
+curl -X POST http://127.0.0.1:8000/api/token/ -H "Content-Type: application/json" -d "{\"username\":\"faust\",\"password\":\"Eur1308BEST\"}"
