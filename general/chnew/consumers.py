@@ -15,6 +15,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.room_id = int(self.scope["url_route"]["kwargs"]["room_id"])
         self.group_name = f"room_{self.room_id}"
+        
+        await self.accept()
 
         user = self.scope.get("user")
         if not user or not user.is_authenticated:
@@ -35,7 +37,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
 
         await self.channel_layer.group_add(self.group_name, self.channel_name)
-        await self.accept()
+        
 
         # отправим историю (последние 50)
         history = await self.get_last_messages(self.room_id, limit=50)
@@ -80,7 +82,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.channel_layer.group_send(
                 self.group_name,
                 {
-                    "type": "chat.message",
+                    "type": "chat.message",         # CALLS chat_message handler with event dict as argument
                     "message": msg_dict,
                 }
             )
@@ -92,7 +94,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.channel_layer.group_send(
                 self.group_name,
                 {
-                    "type": "chat.typing",
+                    "type": "chat.typing",        # CALLS chat_typing handler with event dict as argument
                     "user_id": user.id,
                     "is_typing": is_typing,
                 }
@@ -149,7 +151,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             "created_at": msg.created_at.isoformat(),
         }
 
-        
+    @database_sync_to_async    
     def get_last_messages(self, room_id: int, limit: int = 50) -> list[dict]:
         # ordering у тебя "-created_at", поэтому берём последние limit и потом разворачиваем для нормального порядка
         qs = (
