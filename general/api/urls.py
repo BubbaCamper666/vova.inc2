@@ -2,6 +2,8 @@ from django.urls import path, re_path, include
 from . import views
 from rest_framework.authtoken.views import obtain_auth_token
 
+app_name = "api"
+
 urlpatterns = [
     path('token/', obtain_auth_token),
     
@@ -21,6 +23,10 @@ urlpatterns = [
     path("team/<uuid:pk>/members/<int:member_id>/delete/", views.TeamMemberDelete.as_view(), name="delete_team_member"),
     path('team/<uuid:pk>/members/', views.TeamMemberList.as_view(), name="teammembers"),
     
-
+    path('room/', views.RoomList.as_view(), name="roomlist"),
+    path('room/create/', views.RoomCreate.as_view(), name="roomcreate"),
+    path('room/<int:pk>/delete/', views.RoomDelete.as_view(), name="roomdelete"),
+    path('room/<int:pk>/members/', views.RoomMemberList.as_view(), name="roommembers"),
+    path('room/<int:pk>/members/<int:member_id>/delete/', views.RoomMemberDelete.as_view(), name="delete_room_member"),
     
 ]   

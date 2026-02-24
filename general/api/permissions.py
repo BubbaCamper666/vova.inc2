@@ -1,5 +1,6 @@
 from rest_framework import permissions
 from task.models import Team, TeamMember, Task, TaskMember
+from chnew.models import Room, RoomMember
 
 class IsSuperVLAD(permissions.BasePermission):
     def has_permission(self, request, view):
@@ -15,6 +16,13 @@ class IsOwnerForParentTeam(permissions.BasePermission):
         if not team_pk:
             return False
         return (Team.objects.filter(pk=team_pk, owner=request.user).exists())
+    
+class isOwnerForParentRoom(permissions.BasePermission):
+    def has_permission(self, request, view):
+        room_pk = view.kwargs.get("pk")
+        if not room_pk:
+            return False
+        return (Room.objects.filter(pk=room_pk, owner=request.user).exists())
 
 class IsOwnerOrMember(permissions.BasePermission):
     def has_permission(self, request, view):

@@ -1,0 +1,1 @@
+CHNEW_WS_CHAT_PATH = "/ws/chat/{room_id}/"

@@ -1,3 +1,5 @@
+from urllib import request
+
 from rest_framework.response import Response
 from django.http import Http404
 from django.urls import reverse
@@ -7,7 +9,7 @@ from rest_framework import generics, mixins
 from rest_framework.views import APIView
 
 from task.models import Team, TeamMember, Task, TaskMember
-#from chat.models import Room, MessageRoom
+from chnew.models import Room, RoomMember, Message
 from . import serializers 
 from . import permissions
 from rest_framework.permissions import IsAuthenticated
@@ -30,20 +32,33 @@ class Welcome(APIView):
     permission_classes = [IsAuthenticated]
     
     def get_teamlist_url(self, request):
-        fixed_path = reverse("teamlist")
+        fixed_path = reverse("api:teamlist")
         full_url = request.build_absolute_uri(fixed_path)
         return full_url
     
     def get_teamcreate_url(self, request):
-        fixed_path = reverse("teamcreate")
+        fixed_path = reverse("api:teamcreate")
+        full_url = request.build_absolute_uri(fixed_path)
+        return full_url
+    
+    def get_roomlist_url(self, request):
+        fixed_path = reverse("api:roomlist")
         full_url = request.build_absolute_uri(fixed_path)
         return full_url
 
+    def get_roomcreate_url(self, request):
+        fixed_path = reverse("api:roomcreate")
+        full_url = request.build_absolute_uri(fixed_path)
+        return full_url
+    
     def get(self, request):
         return Response({
             "WELCOME": "WELCOME",
+            "current_time": now(),
             "teamlist": self.get_teamlist_url(request),
             "teamcreate": self.get_teamcreate_url(request),
+            "roomlist": self.get_roomlist_url(request),
+            "roomcreate": self.get_roomcreate_url(request),
         })
 
 class Teamlist(generics.ListAPIView):
@@ -248,42 +263,59 @@ class TaskMemberDelete(generics.DestroyAPIView):
         return TaskMember.objects.filter(task__team_id=team_pk, task__id=taskid, id=member_id)
     
 # chat views will be here
-"""
+
 class RoomList(generics.ListAPIView):
     serializer_class = serializers.RoomSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = Room.objects.filter(Q(owner=self.request.user) | Q(memberships__user=self.request.user)).distinct()
+        return qs
+
+class RoomCreate(generics.CreateAPIView):
+    serializer_class = serializers.RoomPOSTSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+        
+class RoomDelete(generics.DestroyAPIView):
+    serializer_class = serializers.RoomSerializer
+    permission_classes = [permissions.IsOwner]
+    
+    lookup_url_kwarg = "pk"
+    lookup_field = "id"
     
     def get_queryset(self):
-        return Room.objects.filter(participants=self.request.user)
+        pk = self.kwargs.get("pk")
+        return Room.objects.filter(id=pk)
+        
+class RoomMemberList(generics.ListCreateAPIView):
+    serializer_class = serializers.RoomMemberPOSTSerializer
+    permission_classes = [permissions.isOwnerForParentRoom]
+
+    def get_queryset(self):
+        kwarg = self.kwargs.get("pk")
+        return RoomMember.objects.filter(room=kwarg)
     
-class RoomCreate(generics.CreateAPIView):
-    serializer_class = serializers.RoomSerializer
-    permission_classes = [IsAuthenticated]
+    def get_serializer_class(self):
+        if self.request.method == "GET":
+            return serializers.RoomMemberSerializer
+        elif self.request.method == "POST":
+            return serializers.RoomMemberPOSTSerializer
     
     def perform_create(self, serializer):
-        room = serializer.save()
-        room.participants.add(self.request.user)
-        
-class RoomChat(APIView):
-    serializer_class = serializers.MessageRoomSerializer
-    permission_classes = [IsAuthenticated]
+        kwarg = self.kwargs.get("pk")
+        serializer.save(room_id=kwarg)
     
-    def get_object(self, room_id):
-        try:
-            return Room.objects.get(id=room_id, participants=self.request.user)
-        except Room.DoesNotExist:
-            raise Http404
-    
-    def get(self, request, room_id):
-        messages = MessageRoom.objects.filter(room_id=room_id)
-        serializer = serializers.MessageRoomSerializer(messages, many=True, context={"request": request})
-        return Response(serializer.data)
-    
-    def post(self, request, room_id):
-        serializer = serializers.MessageRoomSerializer(data=request.data, context={"request": request})
-        if serializer.is_valid():
-            room = Room.objects.get(id=room_id)
-            serializer.save(room=room, sender=request.user, team=room.team_set.first())
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
-"""
+class RoomMemberDelete(generics.DestroyAPIView):
+    serializer_class = serializers.RoomMemberSerializer
+    permission_classes = [permissions.isOwnerForParentRoom]
+
+    lookup_url_kwarg = "member_id"
+    lookup_field = "id"
+
+    def get_queryset(self):
+        room_pk = self.kwargs["pk"]
+        profile = self.kwargs["member_id"]
+        return RoomMember.objects.filter(room_id=room_pk, user=profile)

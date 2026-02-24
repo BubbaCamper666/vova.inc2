@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from task.models import Task, Team, TeamMember, TaskMember
-#from chat.models import Room, MessageRoom
+from chnew.models import Room, RoomMember, Message
+from chnew.constants import CHNEW_WS_CHAT_PATH
 
 class TeamSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
@@ -204,3 +205,86 @@ class TaskMemberPOSTSerializer(serializers.ModelSerializer):
     
 # CHAT SERIALIZERS
 
+class RoomSerializer(serializers.ModelSerializer):
+    chat_url = serializers.SerializerMethodField()
+    members_url = serializers.SerializerMethodField()
+    delete_url = serializers.SerializerMethodField()
+    class Meta:
+        fields = (
+            "id",
+            "owner",
+            "title",
+            "created_at",
+            "chat_url",
+            "members_url",
+            "delete_url",
+        )
+        model = Room
+        
+    def get_chat_url(self, obj):
+        request = self.context.get("request")
+
+        path = CHNEW_WS_CHAT_PATH.format(room_id=obj.pk)
+
+        # если request нет (например, сериализация вне view) — вернём относительный путь
+        if not request:
+            return path
+
+        scheme = "wss" if request.is_secure() else "ws"
+        return f"{scheme}://{request.get_host()}{path}"
+    
+    def get_members_url(self, obj):
+        request = self.context.get("request")
+        url = obj.get_members_url()
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+    
+    def get_delete_url(self, obj):
+        request = self.context.get("request")
+        url = obj.get_delete_url()
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+    
+class RoomPOSTSerializer(serializers.ModelSerializer):
+    class Meta:
+        fields = (
+            "title",
+            "created_at",
+        )
+        model = Room
+        
+class RoomMemberSerializer(serializers.ModelSerializer):
+    delete_url = serializers.SerializerMethodField()
+    class Meta:
+        fields = (
+            "room",
+            "user",
+            "joined_at",
+            "delete_url",
+        )
+        model = RoomMember
+    def get_delete_url(self, obj):
+        request = self.context.get("request")
+        url = obj.get_delete_url()
+        if request:
+            return request.build_absolute_uri(url)
+        return url
+
+class RoomMemberPOSTSerializer(serializers.ModelSerializer):
+    class Meta:
+        fields = (
+            "user",
+        )
+        read_only_fields = ["room"]
+        model = RoomMember
+    
+    def validate_user(self, user):
+        room_id = self.context["view"].kwargs.get("pk")
+        # можно .only("owner_id") чтобы не тащить лишнее
+        room = Room.objects.only("owner_id").get(pk=room_id)
+
+        if room.owner_id == user.id:
+            raise serializers.ValidationError("Владелец комнаты не может быть добавлен как участник.")
+        return user

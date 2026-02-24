@@ -48,16 +48,16 @@ class Team(models.Model):
         return self.title
     
     def get_absolute_url(self):
-        return reverse("teamdetail", kwargs={"pk": self.id})
+        return reverse("api:teamdetail", kwargs={"pk": self.id})
     
     def get_members_url(self):
-        return reverse("teammembers", kwargs={"pk": self.id})
+        return reverse("api:teammembers", kwargs={"pk": self.id})
     
     def get_tasks_url(self):
-        return reverse("tasklist", kwargs={"pk": self.id})
+        return reverse("api:tasklist", kwargs={"pk": self.id})
 
     def get_delete_url(self):
-        return reverse("teamdelete", kwargs={"pk": self.id})
+        return reverse("api:teamdelete", kwargs={"pk": self.id})
 
 class TeamMember(models.Model):
     class Role(models.TextChoices):
@@ -84,7 +84,7 @@ class TeamMember(models.Model):
         return self.profile.username
     
     def get_deletion_url(self):
-        return reverse("delete_team_member", kwargs={"pk": self.team.id, "member_id": self.id})
+        return reverse("api:delete_team_member", kwargs={"pk": self.team.id, "member_id": self.id})
 
 
 class Task(models.Model):
@@ -121,16 +121,16 @@ class Task(models.Model):
         return self.title
     
     def get_absolute_url(self):
-        return reverse("taskdetail", kwargs={"pk": self.id})
+        return reverse("api:taskdetail", kwargs={"pk": self.id})
     
     def get_members_url(self):
-        return reverse("taskmembers", kwargs={"pk": self.team.id, "taskid": self.id})
+        return reverse("api:taskmembers", kwargs={"pk": self.team.id, "taskid": self.id})
     
     def get_delete_url(self):
-        return reverse("taskdelete", kwargs={"pk": self.team.id, "taskid": self.id})
+        return reverse("api:taskdelete", kwargs={"pk": self.team.id, "taskid": self.id})
     
     def get_redact_url(self):
-        return reverse("taskredact", kwargs={"pk": self.team.id, "taskid": self.id})
+        return reverse("api:taskredact", kwargs={"pk": self.team.id, "taskid": self.id})
     
 class TaskMember(models.Model):
     class Role(models.TextChoices):
@@ -157,4 +157,4 @@ class TaskMember(models.Model):
         return self.profile.username
     
     def get_delete_url(self):
-        return reverse("delete_task_member", kwargs={"pk": self.task.team.id, "taskid": self.task.id, "member_id": self.id})
+        return reverse("api:delete_task_member", kwargs={"pk": self.task.team.id, "taskid": self.task.id, "member_id": self.id})

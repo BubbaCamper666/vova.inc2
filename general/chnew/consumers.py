@@ -134,7 +134,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def is_room_member(self, room_id: int, user_id: int) -> bool:
-        return RoomMember.objects.filter(room_id=room_id, user_id=user_id).exists()
+        return RoomMember.objects.filter(room_id=room_id, user_id=user_id).exists() or Room.objects.filter(id=room_id, owner_id=user_id).exists() # владелец или учатник
 
     @database_sync_to_async
     def create_message(self, room_id: int, sender_id: int, text: str) -> dict:
