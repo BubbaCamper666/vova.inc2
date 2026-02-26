@@ -5,10 +5,12 @@ from rest_framework.authtoken.views import obtain_auth_token
 app_name = "api"
 
 urlpatterns = [
-    path('token/', obtain_auth_token),
+    
+    #path("auth/", include(("rest_framework.urls", "rest_framework"), namespace="rest_framework"),),
     
     path("", views.Welcome.as_view(), name="welcome"),
-    path("auth/", include("rest_framework.urls")),
+    #path("auth/", include("rest_framework.urls")),
+    path('token/', obtain_auth_token),
     
     path('team/<uuid:pk>/task/', views.TaskList.as_view(), name="tasklist"),
     path('team/<uuid:pk>/task/<int:taskid>/redact/', views.TaskRedact.as_view(), name="taskredact"),

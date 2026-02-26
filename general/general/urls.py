@@ -23,5 +23,9 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('acc.urls')),
     path('api/', include(('api.urls', 'api'), namespace='api')),
+    path(
+        'api/auth/',
+        include(('rest_framework.urls', 'rest_framework'), namespace='rest_framework'),
+    ),
     
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
